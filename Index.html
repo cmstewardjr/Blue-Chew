@@ -1,1 +1,764 @@
-test
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Blue Chew</title>
+    <style>
+        html, body {
+            overscroll-behavior: none; margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;
+        }
+        body {
+            background-color: #e0f2ff; font-family: 'Verdana', sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #333;
+        }
+        #page-background-canvas {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1;
+        }
+        h1 {
+            color: #0b4a8d; text-shadow: 2px 2px #fff; text-align: center; margin: 0 0 15px 0; flex-shrink: 0; z-index: 1;
+        }
+        #main-layout-container {
+            display: flex; flex-direction: column; align-items: center; width: 100%; height: 100%; justify-content: center; padding: 10px; box-sizing: border-box; z-index: 1;
+        }
+        #game-column {
+            display: flex; flex-direction: column; align-items: center; width: 100%;
+        }
+        #game-wrapper {
+            position: relative; width: 100%; max-width: 95vw; max-height: 85vh; aspect-ratio: 600 / 600; /* Adjusted aspect ratio for 20% increased vertical screen */ border: 8px solid #a3d5ff; border-radius: 15px; box-shadow: 0 10px 20px rgba(0,0,0,0.15); overflow: hidden; background: #000;
+        }
+        canvas#gameCanvas {
+            display: block; border-radius: 7px; width: 100%; height: 100%;
+            image-rendering: pixelated;
+            image-rendering: -moz-crisp-edges;
+            image-rendering: -webkit-optimize-contrast;
+        }
+        #game-container {
+            position: relative; width: 100%; height: 100%;
+        }
+        #stats-bar {
+            margin-top: 10px; width: 100%; max-width: 100%; background-color: #fff; padding: 8px 15px; border-radius: 12px; border: 4px solid #a3d5ff; box-shadow: 0 4px 6px rgba(0,0,0,0.1); box-sizing: border-box;
+            display: flex; justify-content: center; align-items: center;
+        }
+        #score-display {
+            font-size: 22px; font-weight: bold; color: #0b4a8d; text-align: center;
+            transition: background-color 0.3s, color 0.3s;
+            padding: 5px 10px; border-radius: 8px;
+        }
+        #score-display.blocked {
+            background-color: #ff4d4d;
+            color: white;
+        }
+        .overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.7); color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; border-radius: 7px; z-index: 20; padding: 10px; box-sizing: border-box;
+        }
+        .overlay h2 { font-size: clamp(28px, 8vw, 48px); margin: 0; text-shadow: 3px 3px #000; }
+        .overlay p { font-size: clamp(16px, 4vw, 22px); margin: 10px 0 20px 0; max-width: 90%; }
+        #game-over-screen { display: none; }
+        .action-button { padding: 15px 30px; font-size: 20px; font-weight: bold; color: #fff; background-color: #34a853; border: none; border-radius: 10px; cursor: pointer; transition: background-color 0.3s; box-shadow: 0 4px 6px rgba(0,0,0,0.2); }
+        .action-button:hover { background-color: #2c8f45; }
+        
+        #high-score-entry { margin-top: 10px; }
+        #high-score-entry input { width: 100px; padding: 10px; font-size: 24px; text-align: center; border: 2px solid #fff; border-radius: 5px; background: #333; color: #fff; text-transform: uppercase; }
+        #high-score-entry button { margin-top: 10px; }
+
+        #high-score-display { background-color: rgba(0,0,0,0.3); padding: 5px 20px 15px; border-radius: 10px; width: 80%; max-width: 350px; margin-top: 15px; }
+        #high-score-display h3 { margin-bottom: 10px; font-size: 20px; text-shadow: 2px 2px #000; }
+        #scores-list p { margin: 5px 0; font-size: clamp(16px, 4vw, 18px); font-weight: bold; }
+        #scores-list .score-entry-1 { color: #FFD700; text-shadow: 1px 1px #a67c00; }
+        #scores-list .score-entry-2 { color: #C0C0C0; text-shadow: 1px 1px #7d7d7d; }
+        #scores-list .score-entry-3 { color: #CD7F32; text-shadow: 1px 1px #845421; }
+        #scores-list .score-entry-4, #scores-list .score-entry-5 { color: #FFFFFF; }
+        .score-name { display: inline-block; width: 60px; text-align: left;}
+        .score-value { display: inline-block; text-align: right; }
+        
+        .corner-button { position: fixed; width: 50px; height: 50px; background-color: #0b4a8d; color: white; font-size: 30px; font-weight: bold; text-align: center; line-height: 50px; border-radius: 50%; cursor: pointer; box-shadow: 0 4px 8px rgba(0,0,0,0.3); z-index: 100; transition: transform 0.2s, background-color 0.2s; user-select: none; -webkit-user-select: none; }
+        .corner-button:hover { background-color: #083b70; transform: scale(1.1); }
+        #help-button { bottom: 20px; right: 20px; }
+        
+        #help-modal { display: none; z-index: 110; background-color: rgba(0, 0, 0, 0.8); }
+        #help-content { background-color: #fff; color: #333; padding: 20px 40px; border-radius: 15px; position: relative; max-width: 90%; max-height: 90vh; overflow-y: auto; text-align: left; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
+        #help-content h2 { color: #0b4a8d; text-shadow: none; text-align: center; margin-top: 10px; margin-bottom: 20px; }
+        #close-help-button { position: absolute; top: 10px; right: 20px; font-size: 35px; font-weight: bold; color: #aaa; cursor: pointer; line-height: 1; transition: color 0.2s; }
+        #close-help-button:hover { color: #333; }
+        #help-content ul { list-style: none; padding: 0; margin: 0; } #help-content li { font-size: 18px; margin-bottom: 12px; display: flex; align-items: center; }
+        .item-icon { 
+            display: inline-block; width: 32px; height: 32px; margin-right: 15px; border: 1px solid #ccc; flex-shrink: 0; 
+            background-size: contain; background-repeat: no-repeat; background-position: center;
+        }
+
+        #confetti-container {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            pointer-events: none; z-index: 150; overflow: hidden;
+        }
+        .confetti { position: absolute; pointer-events: none; width: 10px; height: 20px; opacity: 0; }
+
+        /* New Joystick Styles */
+        #joystick-container {
+            position: fixed;
+            bottom: 30px; /* Adjust as needed */
+            left: 50%;
+            transform: translateX(-50%);
+            width: clamp(150px, 40vw, 250px); /* Responsive sizing */
+            height: clamp(150px, 40vw, 250px);
+            display: grid;
+            grid-template-areas:
+                ". up ."
+                "left center right"
+                ". down .";
+            grid-template-columns: 1fr 1fr 1fr;
+            grid-template-rows: 1fr 1fr 1fr;
+            background-color: rgba(11, 74, 141, 0.7); /* Blue Chew blue with transparency */
+            border-radius: 50%;
+            box-shadow: 0 0 15px rgba(0,0,0,0.5);
+            z-index: 100;
+            user-select: none;
+            -webkit-user-select: none;
+            display: none; /* Hidden by default, shown by media query */
+        }
+
+        .joystick-button {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: clamp(24px, 6vw, 40px);
+            color: white;
+            opacity: 0.8;
+            cursor: pointer;
+            transition: opacity 0.15s, background-color 0.15s;
+        }
+
+        .joystick-button:active {
+            opacity: 1;
+            background-color: rgba(255,255,255,0.2);
+        }
+
+        #joystick-up    { grid-area: up; }
+        #joystick-down  { grid-area: down; }
+        #joystick-left  { grid-area: left; }
+        #joystick-right { grid-area: right; }
+        #joystick-center { grid-area: center; border-radius: 50%; background-color: rgba(255,255,255,0.1); }
+
+        /* Arrows with pseudo-elements for cleaner design */
+        #joystick-up::after { content: '▲'; }
+        #joystick-down::after { content: '▼'; }
+        #joystick-left::after { content: '◄'; }
+        #joystick-right::after { content: '►'; }
+
+
+        /* Media query to show joystick only on smaller screens (typical for mobile) and adjust game wrapper for space */
+        @media (pointer: coarse) and (max-width: 768px) { /* Check for touch devices and narrow screens */
+            #joystick-container {
+                display: grid; /* Show the joystick */
+            }
+            body {
+                justify-content: flex-start; /* Align content to top instead of center to use screen space */
+            }
+            h1 {
+                margin-top: 3vh; /* Adjust top margin for better fit on mobile */
+            }
+            #main-layout-container {
+                padding-top: 0px; /* Remove excessive padding top */
+                padding-bottom: calc(30px + clamp(150px, 40vw, 250px) + 15px); /* Add padding for joystick at the bottom, dynamically */
+                height: auto; /* Allow height to adapt */
+                flex: 1; /* Allow to take available space */
+                justify-content: flex-start; /* Realign content to top */
+            }
+            #game-wrapper {
+                /* Removed max-height here to allow it to expand more based on its aspect-ratio, making the play area bigger */
+            }
+            #stats-bar {
+                max-width: 95vw; /* Make stats bar take full width on mobile as per green mark suggestion */
+            }
+            #help-button {
+                /* Position relative to the top of the joystick container */
+                bottom: calc(30px + clamp(150px, 40vw, 250px) + 20px); 
+                right: 20px; /* Keep it right aligned as per green circle */
+                z-index: 101; /* Ensure help button is above joystick if it overlaps */
+            }
+        }
+        /* Hide joystick on desktop/precision pointer devices */
+        @media (hover: hover) and (pointer: fine) {
+            #joystick-container {
+                display: none !important;
+            }
+        }
+
+    </style>
+</head>
+<body>
+    <canvas id="page-background-canvas"></canvas>
+
+    <div id="confetti-container"></div>
+
+    <div id="main-layout-container">
+        <div id="game-column">
+            <h1>Blue Chew</h1>
+            <div id="game-wrapper">
+                <div id="start-screen" class="overlay">
+                    <h2>Blue Chew</h2>
+                    <p>Collect the Blue Chews and grow your tail!</p>
+                    <button id="start-button" class="action-button">Play Game</button>
+                </div>
+                <div id="game-over-screen" class="overlay">
+                    <h2>Game Over!</h2>
+                    <p id="final-score"></p>
+                    <div id="high-score-display">
+                        <h3>High Scores</h3>
+                        <div id="scores-list">
+                            <p class="score-entry-1"><span class="score-name"></span> – <span class="score-value"></span></p>
+                            <p class="score-entry-2"><span class="score-name"></span> – <span class="score-value"></span></p>
+                            <p class="score-entry-3"><span class="score-name"></span> – <span class="score-value"></span></p>
+                            <p class="score-entry-4"><span class="score-name"></span> – <span class="score-value"></span></p>
+                            <p class="score-entry-5"><span class="score-name"></span> – <span class="score-value"></span></p>
+                        </div>
+                    </div>
+                    <div id="high-score-prompt" style="display: none;">
+                        <p>New High Score! Enter your name:</p>
+                        <div id="high-score-entry">
+                            <input type="text" id="player-name-input" maxlength="3" />
+                            <button id="submit-score-button" class="action-button">Submit</button>
+                        </div>
+                    </div>
+                    <div id="game-over-buttons">
+                        <button id="restart-button" class="action-button">Play Again</button>
+                    </div>
+                </div>
+                <div id="game-container">
+                    <canvas id="gameCanvas"></canvas>
+                </div>
+            </div>
+            <div id="stats-bar">
+                <div id="score-display">Score: 0</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Joystick for Mobile -->
+    <div id="joystick-container">
+        <div class="joystick-button" id="joystick-up"></div>
+        <!-- Removed joystick-row div to ensure correct grid alignment -->
+        <div class="joystick-button" id="joystick-left"></div>
+        <div class="joystick-button" id="joystick-center"></div>
+        <div class="joystick-button" id="joystick-right"></div>
+        <div class="joystick-button" id="joystick-down"></div>
+    </div>
+
+    <div id="help-button" class="corner-button">?</div>
+    <div id="help-modal" class="overlay">
+        <div id="help-content">
+            <span id="close-help-button">×</span>
+            <h2>Point System</h2>
+            <ul>
+                <li><span class="item-icon" id="help-icon-pill"></span> Blue Chew Pill: +10 Points</li>
+                <li><span class="item-icon" style="background: radial-gradient(circle at 65% 35%, #87CEFA, #4169E1); border-radius: 50%;"></span> Blue Ball: Blocks points for 5s</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        ctx.imageSmoothingEnabled = false;
+
+        const startScreen = document.getElementById('start-screen');
+        const gameOverScreen = document.getElementById('game-over-screen');
+        const scoreDisplay = document.getElementById('score-display');
+        const finalScoreDisplay = document.getElementById('final-score');
+        const restartButton = document.getElementById('restart-button');
+        const startButton = document.getElementById('start-button');
+        const highScorePrompt = document.getElementById('high-score-prompt');
+        const gameOverButtons = document.getElementById('game-over-buttons');
+        const playerNameInput = document.getElementById('player-name-input');
+        const submitScoreButton = document.getElementById('submit-score-button');
+
+        const blueChewImage = new Image();
+        blueChewImage.src = 'https://nerdrealm419.github.io/GridTailv0.1/bluechew.png';
+        blueChewImage.onload = () => {
+            const helpIcon = document.getElementById('help-icon-pill');
+            if(helpIcon) helpIcon.style.backgroundImage = `url('${blueChewImage.src}')`;
+        };
+        
+        const UPSCALE_FACTOR = 5; 
+        const BASE_WIDTH = 600;
+        const BASE_HEIGHT = 600; /* INCREASED: Expanded vertical screen by 20% */
+        const BASE_GRID_SIZE = 20;
+        canvas.width = BASE_WIDTH * UPSCALE_FACTOR;
+        canvas.height = BASE_HEIGHT * UPSCALE_FACTOR;
+        const GRID_SIZE = BASE_GRID_SIZE * UPSCALE_FACTOR;
+
+        const MAX_ITEM_COUNT = 4;
+        const MIN_ITEM_DISTANCE = 4 * GRID_SIZE;
+        const FLESH_TONE_COLORS = ['#8d5524', '#c68642', '#e0ac69', '#f1c27d', '#ffdbac', '#5C3C10', '#A8754C', '#F0D5B3', '#D39C7E', '#B3734A'];
+        const RAINBOW_COLORS = ['#87CEFA', '#4682B4', '#4169E1', '#0000CD', '#6495ED'];
+        
+        const ITEM_TYPES = {
+            BLUE_CHEW: { key: 'BLUE_CHEW', value: 10, probability: 0.90 },
+            BLUE_BALL: { key: 'BLUE_BALL', color: '#4169E1', effect: 'block_points', duration: 5000, probability: 0.10, isBad: true }
+        };
+
+        const GAME_SETTINGS = {
+            LEVELS: [ { level: 1, speed: 110, itemLifespan: 7000 }, { level: 2, speed: 100, itemLifespan: 6500 }, { level: 3, speed: 90, itemLifespan: 6000 }, { level: 4, speed: 80, itemLifespan: 5500 }, { level: 5, speed: 75, itemLifespan: 5000 } ]
+        };
+        const BACKGROUND_STYLES = [
+            { type: 'color', value: '#faffd4' }, { type: 'color', value: '#e6ffe6' }, { type: 'color', value: '#ffe6e6' }, { type: 'grid', bgColor: '#e0e0e0', lineColor: '#ababab' }, { type: 'space', bgColor: '#00001a', starCount: 100 }, { type: 'rainbow' }
+        ];
+
+        let meerca, direction, nextDirection, onScreenItems, score, isGameOver, gameLoopRequestId, visualEffects;
+        let pillsEatenCounter, frameCounter, currentTailColor;
+        let currentDifficultyIndex, gameSpeed, currentItemLifespan;
+        let activeBackground, stars, lastBackgroundIndex = -1, isPointsBlocked;
+        let headImages = {};
+
+        // Variables for fixed timestep game loop
+        let lastFrameTime = 0;
+        let accumulator = 0;
+        
+        function getHighScores() { 
+            const scoresJSON = localStorage.getItem('gridtail_scores_v3'); 
+            if (scoresJSON) { return JSON.parse(scoresJSON); }
+            return Array(5).fill({ name: '---', score: 0 });
+        }
+        function saveHighScore(newScore, name) { 
+            if (newScore <= 0 || !name) return;
+            const highScores = getHighScores();
+            highScores.push({ name: name.toUpperCase(), score: newScore }); 
+            highScores.sort((a, b) => b.score - a.score); 
+            const topFive = highScores.slice(0, 5); 
+            localStorage.setItem('gridtail_scores_v3', JSON.stringify(topFive)); 
+        }
+        function updateHighScoreDisplay() { 
+            const title = document.querySelector("#high-score-display h3");
+            if (title) title.textContent = `High Scores`;
+
+            const highScores = getHighScores();
+            for (let i = 0; i < 5; i++) {
+                const entry = highScores[i] || { name: '---', score: 0 };
+                const p = document.querySelector(`#scores-list .score-entry-${i+1}`);
+                if (p) {
+                    p.querySelector('.score-name').textContent = entry.name;
+                    p.querySelector('.score-value').textContent = entry.score;
+                }
+            }
+        }
+
+        const bgCanvas = document.getElementById('page-background-canvas');
+        const bgCtx = bgCanvas.getContext('2d');
+        let bgParticles = [];
+        function resizeBgCanvas() { bgCanvas.width = window.innerWidth; bgCanvas.height = window.innerHeight; }
+        function initPageBackground() { resizeBgCanvas(); bgParticles = []; let particleCount = 100; for (let i = 0; i < particleCount; i++) { bgParticles.push({ x: Math.random() * bgCanvas.width, y: Math.random() * bgCanvas.height, size: Math.random() * 3 + 2, speedX: (Math.random() - 0.5) * 0.5, speedY: (Math.random() - 0.5) * 0.5, color: RAINBOW_COLORS[Math.floor(Math.random() * RAINBOW_COLORS.length)] }); } }
+        function animatePageBackground() { bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height); for (const p of bgParticles) { p.x += p.speedX; p.y += p.speedY; if (p.x > bgCanvas.width + p.size) p.x = -p.size; if (p.x < -p.size) p.x = bgCanvas.width + p.size; if (p.y > bgCanvas.height + p.size) p.y = -p.size; if (p.y < -p.size) p.y = bgCanvas.height + p.size; bgCtx.fillStyle = p.color; bgCtx.beginPath(); bgCtx.arc(p.x, p.y, p.size, 0, 2 * Math.PI); bgCtx.fill(); } requestAnimationFrame(animatePageBackground); }
+
+        function init() {
+            meerca = [{ x: 10 * GRID_SIZE, y: 10 * GRID_SIZE }];
+            currentTailColor = FLESH_TONE_COLORS[Math.floor(Math.random() * FLESH_TONE_COLORS.length)];
+            direction = 'right'; nextDirection = 'right'; score = 0; isGameOver = false; onScreenItems = []; visualEffects = []; pillsEatenCounter = 0; frameCounter = 0; isPointsBlocked = false; scoreDisplay.classList.remove('blocked');
+            setDifficulty(0); let newIndex; do { newIndex = Math.floor(Math.random() * BACKGROUND_STYLES.length); } while (BACKGROUND_STYLES.length > 1 && newIndex === lastBackgroundIndex); lastBackgroundIndex = newIndex; activeBackground = BACKGROUND_STYLES[newIndex]; if (activeBackground.type === 'space') { generateStars(activeBackground.starCount); } startScreen.style.display = 'none'; gameOverScreen.style.display = 'none'; scoreDisplay.textContent = `Score: 0`; highScorePrompt.style.display = 'none'; gameOverButtons.style.display = 'block';
+            clearAllTimeouts(); // Ensure previous game loop is stopped
+            spawnCollectible(); 
+            lastFrameTime = performance.now(); // Initialize for fixed timestep
+            gameLoopRequestId = requestAnimationFrame(mainLoop); // Start the new game loop
+        }
+
+        // Changed gameLoop to use requestAnimationFrame for better responsiveness
+        function mainLoop(currentTime) {
+            if (isGameOver) { 
+                showGameOver(); 
+                return; 
+            }
+
+            const deltaTime = currentTime - lastFrameTime;
+            lastFrameTime = currentTime;
+            accumulator += deltaTime;
+
+            // Update game logic in fixed timesteps
+            const fixedUpdateRate = gameSpeed; // milliseconds per game step
+            while (accumulator >= fixedUpdateRate) {
+                update();
+                accumulator -= fixedUpdateRate;
+                if (isGameOver) { // Check game over condition after each update step
+                    showGameOver();
+                    return;
+                }
+            }
+            
+            draw(); // Draw independently of update rate, for smooth visuals
+            gameLoopRequestId = requestAnimationFrame(mainLoop);
+        }
+        
+        function update() {
+            frameCounter++;
+            const head = { ...meerca[0] };
+            direction = nextDirection;
+            if (direction === 'up') head.y -= GRID_SIZE; if (direction === 'down') head.y += GRID_SIZE; if (direction === 'left') head.x -= GRID_SIZE; if (direction === 'right') head.x += GRID_SIZE;
+            
+            const wallCollision = head.x < 0 || head.x >= canvas.width || head.y < 0 || head.y >= canvas.height;
+            if (wallCollision) { isGameOver = true; return; }
+
+            const selfCollision = checkSelfCollision(head);
+            if (selfCollision) { isGameOver = true; return; }
+
+            meerca.unshift(head);
+            let itemEaten = false;
+            for (let i = onScreenItems.length - 1; i >= 0; i--) { const item = onScreenItems[i]; if (head.x === item.x && item.y === head.y) { handleItemCollection(item, i); itemEaten = true; break; } }
+            if (!itemEaten) meerca.pop();
+            
+            updateItems();
+            visualEffects.forEach(e => e.life--);
+            visualEffects = visualEffects.filter(e => e.life > 0);
+
+            if (!isGameOver && onScreenItems.length < MAX_ITEM_COUNT) {
+                 spawnCollectible(); 
+            }
+        }
+
+        function updateItems() {
+            onScreenItems = onScreenItems.filter(item => { 
+                if (!item.lifespan) return true; 
+                return (Date.now() - item.spawnTime) < item.lifespan; 
+            });
+        }
+        
+        function handleItemCollection(item, index) {
+            onScreenItems.splice(index, 1); 
+
+            switch(item.type.key) {
+                case 'BLUE_CHEW':
+                    if (!isPointsBlocked) {
+                        score = Math.max(0, score + item.type.value);
+                        scoreDisplay.textContent = `Score: ${score}`;
+                    }
+                    pillsEatenCounter++;
+                    currentTailColor = FLESH_TONE_COLORS[Math.floor(Math.random() * FLESH_TONE_COLORS.length)];
+                    if (pillsEatenCounter > 0 && pillsEatenCounter % 10 === 0) {
+                        increaseDifficulty();
+                    }
+                    break;
+                case 'BLUE_BALL':
+                    if (!isPointsBlocked) {
+                        isPointsBlocked = true;
+                        scoreDisplay.classList.add('blocked');
+                        setTimeout(() => {
+                            isPointsBlocked = false;
+                            scoreDisplay.classList.remove('blocked');
+                        }, item.type.duration);
+                    }
+                    break;
+            }
+            
+            spawnCollectible(); 
+        }
+
+        function setDifficulty(levelIndex) { const levels = GAME_SETTINGS.LEVELS; const level = levels[levelIndex]; currentDifficultyIndex = levelIndex; gameSpeed = level.speed; currentItemLifespan = level.itemLifespan; }
+        function increaseDifficulty() { const levels = GAME_SETTINGS.LEVELS; const nextLevelIndex = currentDifficultyIndex + 1; if (nextLevelIndex < levels.length) { setDifficulty(nextLevelIndex); } }
+        
+        function spawnCollectible() { 
+            if (onScreenItems.length >= MAX_ITEM_COUNT) return;
+            const spawnPool = Object.values(ITEM_TYPES).filter(t => t.probability); 
+            let rand = Math.random(); 
+            let chosenType; 
+            for (const type of spawnPool) { rand -= type.probability; if (rand <= 0) { chosenType = type; break; } } 
+            spawnItem(chosenType || ITEM_TYPES.BLUE_CHEW); 
+        }
+
+        function spawnItem(itemType) {
+            let position;
+            let validPositionFound = false;
+            let attempts = 0;
+            const MAX_ATTEMPTS = 50; 
+
+            while (!validPositionFound && attempts < MAX_ATTEMPTS) {
+                attempts++;
+                position = { 
+                    x: Math.floor(Math.random() * (canvas.width / GRID_SIZE)) * GRID_SIZE, 
+                    y: Math.floor(Math.random() * (canvas.height / GRID_SIZE)) * GRID_SIZE 
+                };
+
+                const onSnake = meerca.some(s => s.x === position.x && s.y === position.y);
+                if (onSnake) continue; 
+
+                const tooClose = onScreenItems.some(item => {
+                    const distance = Math.sqrt(Math.pow(item.x - position.x, 2) + Math.pow(item.y - position.y, 2));
+                    return distance < MIN_ITEM_DISTANCE;
+                });
+
+                if (!tooClose) {
+                    validPositionFound = true;
+                }
+            }
+            
+            if (validPositionFound || attempts >= MAX_ATTEMPTS) {
+                 const newItem = { ...position, type: itemType, lifespan: currentItemLifespan, spawnTime: Date.now() };
+                if (itemType.key === 'BLUE_CHEW') {
+                    newItem.rotation = Math.random() * 2 * Math.PI;
+                }
+                onScreenItems.push(newItem);
+            }
+        }
+        
+        function checkSelfCollision(head) { return meerca.length > 1 && meerca.slice(1).some(s => s.x === head.x && s.y === head.y); }
+        function generateStars(count) { stars = []; for (let i = 0; i < count; i++) { stars.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, radius: (Math.random() * 1.5) * UPSCALE_FACTOR }); } }
+        
+        function draw() { ctx.clearRect(0, 0, canvas.width, canvas.height); drawBackground(); drawMeerca(); drawItems(); drawVisualEffects(); }
+        function drawBackground() {
+            ctx.fillStyle = '#FFFFFF'; // This sets the color to white
+            ctx.fillRect(0, 0, canvas.width, canvas.height); // This fills the entire canvas
+        }
+        
+        function drawMeerca() {
+            // Draw Head
+            const headImg = headImages[direction];
+            if (headImg) {
+                ctx.drawImage(headImg, meerca[0].x, meerca[0].y, GRID_SIZE, GRID_SIZE);
+            }
+
+            // Draw Tail
+            const borderWidth = 0 * UPSCALE_FACTOR;
+            for (let i = 1; i < meerca.length; i++) {
+                const segment = meerca[i];
+                ctx.fillStyle = 'black';
+                ctx.fillRect(segment.x, segment.y, GRID_SIZE, GRID_SIZE);
+                ctx.fillStyle = currentTailColor;
+                ctx.fillRect(segment.x + borderWidth, segment.y + borderWidth, GRID_SIZE - (2 * borderWidth), GRID_SIZE - (2 * borderWidth));
+            }
+        }
+        
+        function drawItems() {
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            onScreenItems.forEach(item => {
+                const centerX = item.x + GRID_SIZE / 2;
+                const centerY = item.y + GRID_SIZE / 2;
+
+                if (item.type.key === 'BLUE_CHEW' && blueChewImage.complete) {
+                    const imgWidth = GRID_SIZE * 1.5;
+                    const imgHeight = GRID_SIZE * 1.5;
+                    ctx.save();
+                    ctx.translate(centerX, centerY);
+                    ctx.rotate(item.rotation || 0);
+                    ctx.drawImage(blueChewImage, -imgWidth / 2, -imgHeight / 2, imgWidth, imgHeight);
+                    ctx.restore();
+                } else if (item.type.key === 'BLUE_BALL') {
+                    const radius = GRID_SIZE / 2.2;
+                    const gradient = ctx.createRadialGradient(centerX - radius * 0.3, centerY - radius * 0.3, radius * 0.1, centerX, centerY, radius);
+                    gradient.addColorStop(0, '#87CEFA');
+                    gradient.addColorStop(1, item.type.color);
+                    ctx.fillStyle = gradient;
+                    ctx.beginPath();
+                    ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+                    ctx.fill();
+                }
+            });
+        }
+        function drawVisualEffects() { visualEffects.forEach(effect => { if (!effect.maxLife) return; ctx.globalAlpha = effect.life / effect.maxLife; switch(effect.type) { case 'text': let yPos = effect.y - (20 * (1 - effect.life / effect.maxLife)) * UPSCALE_FACTOR; ctx.font = `bold ${16 * UPSCALE_FACTOR}px Verdana`; ctx.fillStyle = effect.color; ctx.textAlign = 'center'; ctx.fillText(effect.text, effect.x, yPos); break; } ctx.globalAlpha = 1.0; }); }
+        
+        function createConfettiEffect() {
+            const container = document.getElementById('confetti-container');
+            container.innerHTML = '';
+            const confettiCount = 150;
+            const colors = ['#f44336', '#e91e63', '#9c27b0', '#673ab7', '#3f51b5', '#2196f3', '#03a9f4', '#00bcd4', '#009688', '#4caf50', '#8bc34a', '#cddc39', '#ffeb3b', '#ffc107', '#ff9800'];
+            for (let i = 0; i < confettiCount; i++) { const c = document.createElement('div'); c.classList.add('confetti'); c.style.left = `${Math.random() * 100}vw`; c.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)]; c.style.transform = `rotate(${Math.random() * 360}deg)`; container.appendChild(c); const anim = c.animate([ { top: '-10%', opacity: 1 }, { top: '110%', opacity: 1 } ], { duration: Math.random() * 3000 + 4000, easing: 'linear', delay: Math.random() * 2000 }); anim.onfinish = () => c.remove(); }
+        }
+
+        function showGameOver() { 
+            cancelAnimationFrame(gameLoopRequestId); // Stop the animation frame loop
+            clearAllTimeouts(); // Clear any existing setTimeout/Intervals like for the blue ball effect
+            
+            updateHighScoreDisplay();
+            finalScoreDisplay.textContent = `Your Score: ${score}`; 
+            gameOverScreen.style.display = 'flex'; 
+
+            const highScores = getHighScores();
+            const lowestHighScore = highScores.length > 0 ? highScores[highScores.length - 1].score || 0 : 0;
+            const isNewHighScore = score > 0 && score > lowestHighScore;
+            const isNewFirstPlace = score > 0 && score > (highScores.length > 0 ? highScores[0].score || 0 : 0);
+
+            if (isNewFirstPlace) createConfettiEffect();
+
+            if (isNewHighScore) {
+                highScorePrompt.style.display = 'block';
+                gameOverButtons.style.display = 'none';
+                playerNameInput.value = '';
+                playerNameInput.focus();
+            } else {
+                highScorePrompt.style.display = 'none';
+                gameOverButtons.style.display = 'block';
+            }
+        }
+        
+        submitScoreButton.addEventListener('click', () => {
+            const name = playerNameInput.value.trim().substring(0, 3) || '???';
+            saveHighScore(score, name);
+            updateHighScoreDisplay();
+            highScorePrompt.style.display = 'none';
+            gameOverButtons.style.display = 'block';
+        });
+
+        // Modified to clear both requestAnimationFrame and setTimeouts
+        function clearAllTimeouts() { 
+            if (gameLoopRequestId) {
+                cancelAnimationFrame(gameLoopRequestId);
+                gameLoopRequestId = null;
+            }
+            // Clear any lingering setTimeout (e.g., from blue ball effect)
+            let id = window.setTimeout(null, 0); 
+            while (id--) window.clearTimeout(id); 
+        }
+        function handleDirectionInput(newDirection) { if (newDirection === 'up' && direction !== 'down') nextDirection = 'up'; else if (newDirection === 'down' && direction !== 'up') nextDirection = 'down'; else if (newDirection === 'left' && direction !== 'right') nextDirection = 'left'; else if (newDirection === 'right' && direction !== 'left') nextDirection = 'right'; }
+        
+        function drawHeadShape(ctx) {
+            const w = GRID_SIZE;
+            const h = GRID_SIZE;
+            const r = w * (175/200) / 2;
+
+            ctx.beginPath();
+            ctx.moveTo(0, h);
+            ctx.lineTo(0, r);
+            ctx.arcTo(0, 0, w / 2, 0, r);
+            ctx.arcTo(w, 0, w, r, r);
+            ctx.lineTo(w, h);
+            ctx.closePath();
+
+            const gradient = ctx.createLinearGradient(0, 0, 0, h);
+            gradient.addColorStop(0, '#f0b2ae');
+            gradient.addColorStop(0.6, '#D88C8A');
+            gradient.addColorStop(1, '#D88C8A');
+            ctx.fillStyle = gradient;
+            ctx.fill();
+
+            const scaleX = w / 175;
+            const scaleY = h / 200;
+            ctx.beginPath();
+            ctx.moveTo(75 * scaleX, 180 * scaleY);
+            ctx.quadraticCurveTo(70 * scaleX, 160 * scaleY, 80 * scaleX, 140 * scaleY);
+            ctx.quadraticCurveTo(85 * scaleX, 120 * scaleY, 75 * scaleX, 100 * scaleY);
+            ctx.strokeStyle = "rgba(153, 80, 80, 0.25)";
+            ctx.lineWidth = 2 * UPSCALE_FACTOR;
+            ctx.lineCap = "round";
+            ctx.stroke();
+        }
+
+        function createHeadImages() {
+            const directions = {
+                up: 0,
+                right: 90 * Math.PI / 180,
+                down: 180 * Math.PI / 180,
+                left: 270 * Math.PI / 180
+            };
+
+            for (const dir in directions) {
+                const offscreenCanvas = document.createElement('canvas');
+                offscreenCanvas.width = GRID_SIZE;
+                offscreenCanvas.height = GRID_SIZE;
+                const offCtx = offscreenCanvas.getContext('2d');
+
+                offCtx.translate(GRID_SIZE / 2, GRID_SIZE / 2);
+                offCtx.rotate(directions[dir]);
+                offCtx.translate(-GRID_SIZE / 2, -GRID_SIZE / 2);
+                
+                drawHeadShape(offCtx);
+                headImages[dir] = offscreenCanvas;
+            }
+        }
+
+        document.addEventListener('keydown', e => { const key = e.key; if (key === 'ArrowUp' || key === 'w') handleDirectionInput('up'); else if (key === 'ArrowDown' || key === 's') handleDirectionInput('down'); else if (key === 'ArrowLeft' || key === 'a') handleDirectionInput('left'); else if (key === 'ArrowRight' || key === 'd') handleDirectionInput('right'); });
+        
+        startButton.addEventListener('click', init);
+        restartButton.addEventListener('click', init);
+        
+        const helpButton = document.getElementById('help-button'); const helpModal = document.getElementById('help-modal'); const closeHelpButton = document.getElementById('close-help-button');
+        helpButton.addEventListener('click', () => { helpModal.style.display = 'flex'; });
+        closeHelpButton.addEventListener('click', () => { helpModal.style.display = 'none'; });
+        helpModal.addEventListener('click', (e) => { if (e.target === helpModal) { helpModal.style.display = 'none'; } });
+
+        window.addEventListener('resize', resizeBgCanvas);
+        
+        createHeadImages();
+        
+        initPageBackground();
+        animatePageBackground();
+
+        // Joystick elements
+        const joystickContainer = document.getElementById('joystick-container');
+        
+        // Variables for joystick state
+        let isJoystickActive = false;
+
+        // Function to determine direction based on touch event
+        function getDirectionFromTouchEvent(touchX, touchY) {
+            const rect = joystickContainer.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+
+            const dx = touchX - centerX;
+            const dy = touchY - centerY;
+
+            // Define a dead zone in the center (15% of joystick width/height)
+            const deadZone = joystickContainer.offsetWidth * 0.15;
+
+            if (Math.abs(dx) < deadZone && Math.abs(dy) < deadZone) {
+                return null; // Inside dead zone
+            }
+
+            // Determine primary direction based on greater absolute movement
+            if (Math.abs(dx) > Math.abs(dy)) {
+                // Horizontal movement
+                return dx > 0 ? 'right' : 'left';
+            } else {
+                // Vertical movement
+                return dy > 0 ? 'down' : 'up';
+            }
+        }
+
+        function handleTouchStart(e) {
+            e.preventDefault(); // Prevent default touch actions like scrolling
+            isJoystickActive = true;
+            const touch = e.touches[0];
+            const newDirection = getDirectionFromTouchEvent(touch.clientX, touch.clientY);
+            if (newDirection) {
+                handleDirectionInput(newDirection);
+            }
+            // Add active class to touched area for visual feedback
+            const targetElement = document.elementFromPoint(touch.clientX, touch.clientY);
+            if (targetElement && targetElement.classList.contains('joystick-button')) {
+                targetElement.classList.add('active');
+            } else if (targetElement && targetElement.parentNode.classList.contains('joystick-button')) {
+                // In case touch lands on content inside a button, e.g., pseudo-element text
+                targetElement.parentNode.classList.add('active');
+            }
+        }
+
+        function handleTouchMove(e) {
+            if (!isJoystickActive) return;
+            e.preventDefault(); // Prevent default touch actions like scrolling
+            const touch = e.touches[0];
+            const newDirection = getDirectionFromTouchEvent(touch.clientX, touch.clientY);
+            if (newDirection) {
+                handleDirectionInput(newDirection);
+            }
+            // Update active visual feedback
+            joystickContainer.querySelectorAll('.joystick-button').forEach(btn => btn.classList.remove('active')); // Clear all active first
+            const targetElement = document.elementFromPoint(touch.clientX, touch.clientY);
+            if (targetElement && targetElement.classList.contains('joystick-button')) {
+                targetElement.classList.add('active');
+            } else if (targetElement && targetElement.parentNode.classList.contains('joystick-button')) {
+                targetElement.parentNode.classList.add('active');
+            }
+        }
+
+        function handleTouchEnd(e) {
+            isJoystickActive = false;
+            // Remove active class from all buttons
+            joystickContainer.querySelectorAll('.joystick-button').forEach(btn => btn.classList.remove('active'));
+        }
+
+        // Add touch event listeners to the entire joystick container
+        if (joystickContainer) { // Ensure joystick container exists before adding listeners
+            joystickContainer.addEventListener('touchstart', handleTouchStart, { passive: false });
+            joystickContainer.addEventListener('touchmove', handleTouchMove, { passive: false });
+            joystickContainer.addEventListener('touchend', handleTouchEnd);
+            joystickContainer.addEventListener('touchcancel', handleTouchEnd); // Handle cases where touch leaves screen
+        }
+
+    </script>
+</body>
+</html>
